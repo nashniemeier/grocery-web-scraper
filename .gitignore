@@ -1,0 +1,18 @@
+# Virtual Environment
+.venv/
+venv/
+env/
+ENV/
+
+# Jupyter Notebooks folder
+notebooks/
+*.ipynb
+.ipynb_checkpoints/
+
+# Python Cache & Environment Files
+__pycache__/
+*.pyc
+.env
+
+# abt file
+.abt.txt
