@@ -30,58 +30,49 @@ async def scrape(item_name, zipcode):
 		else:
 			await switch_btn.first.click()
 
-		await page.wait_for_timeout(100000)
-
 		# Now get the products
-		await card_locator = page.locator('.ProductCard--__sc-48568d95-0 dpzklt')
+		card_locator = page.locator('li[class="ColListing--__sc-176c0200-13 lkSbvF"]')
 		await card_locator.nth(4).wait_for(state='visible', timeout=15000)
 
+		#await page.wait_for_timeout(2000)
+
+		print("We have the card locator")
+
 		await page.wait_for_timeout(2000)
-		await cards = card_locator.all()
+		cards = await card_locator.all()
 		print(f'Found {len(cards)} products.')
 		parsed_products = []
 
-		for card in cards:
+		for card in cards[:5]:
 
 			# Grab all text
 			full_text = await card.inner_text()
 
-			# Split into individual lines
 			lines = [line.strip() for line in full_text.split('\n') if line.strip()]
+			#print(lines)
+			print('\n\n')
 
-			product_url = await card.get_attribute('href')
-			img_el = card.locator('img').first
-			img_url = await img_el.get_attribute('src') if await img_el.count() > 0 else None
+			#product_url = await card.get_attribute('href')
+			#img_el = card.locator('img').first
+			#img_url = await img_el.get_attribute('src') if await img_el.count() > 0 else None
 
-			unit_price = pkg_weight = stock_status = display_price = title = None
+			# lines[0] is always Title - Volume, Price
+			details = lines[0].replace(' - ', ',').split(',')
 
+			title = details[0]
+			volume = details[1]
+			price = details[2]
 
-			for line in lines:
-				if "/ lb" in line or "/ oz" in line:
-					unit_price = line
-				elif "lb / package" in line or "oz / package" in line:
-					pkg_weight = line
-				elif "stock" in line.lower():
-					stock_status = line
-				elif line.startswith("$") and not display_price:
-					display_price = (line[:-2] + '.' + line[-2:])
-				elif item_name.lower() in line.lower():
-					title = line
+			print(details)
 
-			item_data = {
-				"title": title,
-				"display_price": display_price,
-				"unit_price": unit_price,
-				"package_weight": pkg_weight,
-				"stock_status": stock_status,
-				"product_url": product_url,
-				"image_url": image_url,
-				"raw_text_lines": lines
-			}
+			volume_count = volume[:volume.index(' ')]
+			unit = volume[volume.index(' '):].strip()
+			total_price = price[2:price.index('.')] + price[price.index('.'):(price.index('.') + 3)]
+
+			per_unit = round((float(total_price) / float(volume_count)), 2)
+			print(str(per_unit) + '/' + unit)
 
 
 
 
-	run(playwright, 'rice', 46259)
-
-asyncio.run(scrape('chicken', 46259))
+asyncio.run(scrape('Chicken', 46259))
