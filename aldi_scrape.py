@@ -24,7 +24,7 @@ async def scrape(item_name, zipcode):
 		await pickup_btn.click()
 
 		# Change Store Click
-		await page.get_by_role('button', name='Change store').first.click()
+		await page.get_by_role('button', name='Change store').nth(1).click()
 
 		# Entering the zipcode
 		await page.locator('.e-1wlht9u').click()
@@ -60,28 +60,34 @@ async def scrape(item_name, zipcode):
 			image_url = await img_el.get_attribute('src') if  await img_el.count() > 0 else None
 
 			unit_price = None
-			pkg_weight = None
+			pkg_volume = None
 			stock_status = None
 			display_price = None
 			title = None
 
-			for line in lines:
+			for line, next_line in zip(lines, lines[1:]):
 				if "/ lb" in line or "/ oz" in line:
 					unit_price = line
-				elif "lb / package" in line or "oz / package" in line:
-					pkg_weight = line
 				elif "stock" in line.lower():
 					stock_status = line
 				elif line.startswith("$") and not display_price:
 					display_price = (line[:-2] + '.' + line[-2:])
 				elif item_name.lower() in line.lower():
 					title = line
+					pkg_volume = next_line
+					print("pkg_volume is" + next_line)
+
+			volume_num = pkg_volume[:pkg_volume.index(' ')]
+#			unit = pkg_volume[pkg_volume.index(' '):].strip()
+
 
 			item_data = {
 				"title": title,
 				"display_price": display_price,
 				"unit_price": unit_price,
-				"package_weight": pkg_weight,
+				"pkg_volume": pkg_volume,
+				"volume_num": volume_num,
+				#"unit": unit,
 				"stock_status": stock_status,
 				"product_url": product_url,
 				"image_url": image_url,
@@ -100,12 +106,12 @@ async def scrape(item_name, zipcode):
 
 				print(item["title"])
 				print(item["display_price"])
-				print(item["package_weight"])
-				if item["raw_text_lines"]:
-					print(item["raw_text_lines"])
+				print(item["pkg_volume"])
+				print(item["volume_num"])
+#				print(item["unit"])
+				print(item["raw_text_lines"])
 				print('\n')
 			if count == 5:
 				break
 				print('\n')
-
-asyncio.run(scrape('chicken', 46259))
+asyncio.run(scrape('milk', 47906))
