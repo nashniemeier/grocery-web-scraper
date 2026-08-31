@@ -33,7 +33,7 @@ async def scrape(item_name, zipcode):
 		base_url = 'https://www.meijer.com/shopping/search.html?text='
 		url = base_url + quote(item_name)
 
-		await page.goto("https://www.meijer.com", wait_until="domcontentloaded")
+		await page.goto(url, wait_until="domcontentloaded")
 		print("Page Title:", await page.title())
 
 
@@ -44,10 +44,38 @@ async def scrape(item_name, zipcode):
 		await location_search.press("Enter")
 
 		await page.locator('div[data-testid="ads-radio-button__selectable-card"]').first.click()
-		await page.wait_for_timeout(2000)
+		#await page.wait_for_timeout(2000)
 		await page.get_by_role("button", name="Continue shopping").click()
 
-		await page.wait_for_timeout(200000)
-		await browser.close()
+		# Now to get product cards
+		card_locator = page.locator('article[class="product-tile"]')
 
-asyncio.run(scrape("chicken", 47906))
+
+		await card_locator.nth(4).wait_for(state='visible', timeout=15000)
+
+		cards = await card_locator.all()
+		print(f'Found {len(cards)} products using class.')
+
+		print(await cards[0].inner_text())
+
+		# First line = title
+		# Third line = price
+		# If price has '/', then get the next few lines
+
+		for card in cards[:5]:
+			full_text = await card.inner_text()
+
+			lines = [line.strip() for line in full_text.split('\n') if line.strip()]
+
+			title = lines[0]
+			price = lines[2]
+			price_per_unit = None
+			if '/' in price:
+				price_per_unit = lines[3]
+
+			print(title)
+			print(price)
+			print(price_per_unit)
+			print('\n')
+
+asyncio.run(scrape("spud", 47906))
