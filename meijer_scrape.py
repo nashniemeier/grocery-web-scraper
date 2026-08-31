@@ -56,7 +56,7 @@ async def scrape(item_name, zipcode):
 		cards = await card_locator.all()
 		print(f'Found {len(cards)} products using class.')
 
-		print(await cards[0].inner_text())
+		print('\n')
 
 		# First line = title
 		# Third line = price
@@ -67,15 +67,27 @@ async def scrape(item_name, zipcode):
 
 			lines = [line.strip() for line in full_text.split('\n') if line.strip()]
 
-			title = lines[0]
-			price = lines[2]
-			price_per_unit = None
-			if '/' in price:
-				price_per_unit = lines[3]
+			print(lines)
+			title = None
+			volume = None
+			price = None
+			for line in lines:
+				if title == None and item_name.lower() in line.lower():
+					title = line
+				if price == None and '$' in line:
+					price = line
 
-			print(title)
-			print(price)
-			print(price_per_unit)
-			print('\n')
+			print("PRICE = ", price)
+			print("TITLE = ", title)
 
-asyncio.run(scrape("spud", 47906))
+
+			print('\n\n')
+
+		await browser.close()
+
+print("----------------- Chicken ----------------\n")
+asyncio.run(scrape("beef", 47906))
+print("-~-~-~-~-~-~-~-~-~ MILK ~-~-~-~-~-~-~-~-~-\n")
+asyncio.run(scrape("bread", 47906))
+print("------------------ EGGS ------------------\n")
+asyncio.run(scrape("hot dog", 47906))
