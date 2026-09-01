@@ -6,9 +6,15 @@ testing = True
 
 async def scrape(item_name, zipcode):
 	async with async_playwright() as playwright:
+		# Fix item name to prevent suggested, non searched items
+		item_name += ' '
+
 		# Start up playwright for our page
 		start_url = "https://www.aldi.us/store/aldi/s?k="
-		browser = await playwright.chromium.launch(headless=False)
+		browser = await playwright.chromium.launch(
+				headless=False,
+				channel='chromium'
+		)
 		page = await browser.new_page()
 
 		# Build our search url
@@ -33,13 +39,16 @@ async def scrape(item_name, zipcode):
 
 		# Selecting the store, picking the first one that shows up
 		await page.locator('.e-5irn7x').first.click()
+		await page.wait_for_load_state("domcontentloaded")
 		await page.get_by_role('button', name='Shop this store').click()
+		await page.wait_for_load_state("domcontentloaded")
+		await page.wait_for_timeout(10000)
 
 		# Getting item cards
 		card_locator = page.locator('a[data-item-card-button="true"]')
-		await card_locator.first.wait_for(state='visible', timeout=15000)
+		await card_locator.nth(4).wait_for(state='visible', timeout=15000)
 
-		await page.wait_for_timeout(2000)
+		#await page.wait_for_timeout(2000)
 		cards = await card_locator.all()
 
 		# End of playwright commands
@@ -47,7 +56,7 @@ async def scrape(item_name, zipcode):
 		parsed_products = []
 
 		# Extract information
-		for card in cards:
+		for card in cards[:5]:
 
 			# Grab all text
 			full_text = await card.inner_text()
@@ -55,63 +64,40 @@ async def scrape(item_name, zipcode):
 			# Split into individual lines
 			lines = [line.strip() for line in full_text.split('\n') if line.strip()]
 
-			product_url = await card.get_attribute('href')
-			img_el = card.locator('img').first
-			image_url = await img_el.get_attribute('src') if  await img_el.count() > 0 else None
+			print(lines)
 
-			unit_price = None
-			pkg_volume = None
-			stock_status = None
-			display_price = None
 			title = None
+			price = None
+			volume = None
+			price_per_unit = None
+			unit = None
 
-			for line, next_line in zip(lines, lines[1:]):
-				if "/ lb" in line or "/ oz" in line:
-					unit_price = line
-				elif "stock" in line.lower():
-					stock_status = line
-				elif line.startswith("$") and not display_price:
-					display_price = (line[:-2] + '.' + line[-2:])
-				elif item_name.lower() in line.lower():
+			# For meat/per volume items only
+			meat_produce_volume = None
+
+			for index, line in enumerate(lines):
+				if '$' in line and price == None:
+					price = line[line.index('$'):]
+				elif item_name.lower().strip() in line.lower() and title == None:
 					title = line
-					pkg_volume = next_line
-					print("pkg_volume is" + next_line)
-
-			volume_num = pkg_volume[:pkg_volume.index(' ')]
-#			unit = pkg_volume[pkg_volume.index(' '):].strip()
+					volume = lines[index + 1]
+					meat_produce_volume = lines[index + 2]
 
 
-			item_data = {
-				"title": title,
-				"display_price": display_price,
-				"unit_price": unit_price,
-				"pkg_volume": pkg_volume,
-				"volume_num": volume_num,
-				#"unit": unit,
-				"stock_status": stock_status,
-				"product_url": product_url,
-				"image_url": image_url,
-				"raw_text_lines": lines
-			}
+			if '/' in volume:
+				volume_details = volume.split(' ')
+				price_per_unit = volume_details[0]
+				volume = meat_produce_volume[meat_produce_volume.index(' '):meat_produce_volume.index('/')].strip()
+			else:
+				price_per_unit = price + ' / ' + volume
 
-			parsed_products.append(item_data)
-		
-		count = 0
+			print("PRICE: ", price)
+			print("TITLE: ", title)
+			print("VOLUME: ", volume)
+			print("PPUNIT: ", price_per_unit)
+			print('\n\n')
+		await browser.close()
 
-		for item in parsed_products:
-			join = " ".join(item["raw_text_lines"])
-			if item_name.lower() in join.lower():
-
-				count += 1
-
-				print(item["title"])
-				print(item["display_price"])
-				print(item["pkg_volume"])
-				print(item["volume_num"])
-#				print(item["unit"])
-				print(item["raw_text_lines"])
-				print('\n')
-			if count == 5:
-				break
-				print('\n')
+asyncio.run(scrape('eggs', 47906))
 asyncio.run(scrape('milk', 47906))
+asyncio.run(scrape('chicken', 47906))

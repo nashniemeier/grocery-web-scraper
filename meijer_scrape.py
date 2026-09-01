@@ -5,7 +5,8 @@ async def scrape(item_name, zipcode):
 	async with async_playwright() as p:
 		# Launch using Playwright's built-in Chromium
 		browser = await p.chromium.launch(
-			headless=False,
+			headless=True,
+			channel="chromium",
 			args=[
 				"--disable-blink-features=AutomationControlled", # Prevents navigator.webdriver detection
 				"--start-maximized"
@@ -34,8 +35,6 @@ async def scrape(item_name, zipcode):
 		url = base_url + quote(item_name)
 
 		await page.goto(url, wait_until="domcontentloaded")
-		print("Page Title:", await page.title())
-
 
 		# Changing Location
 		await page.locator('button[class="store-flyout-button d-flex "]').click()
@@ -58,36 +57,61 @@ async def scrape(item_name, zipcode):
 
 		print('\n')
 
-		# First line = title
-		# Third line = price
-		# If price has '/', then get the next few lines
-
 		for card in cards[:5]:
 			full_text = await card.inner_text()
 
+			# Split all lines into an array
 			lines = [line.strip() for line in full_text.split('\n') if line.strip()]
 
-			print(lines)
+			# Establish needed variables
 			title = None
-			volume = None
 			price = None
-			for line in lines:
+			deal = None
+			volume = None
+			price_per_unit = None
+			unit = None
+
+			# Parse line by line
+			for line, next_line in zip(lines, lines[1:]):
 				if title == None and item_name.lower() in line.lower():
 					title = line
-				if price == None and '$' in line:
+				elif price == None and '$' in line:
 					price = line
+				elif 'reviews' in line and next_line != "Subscribe":
+					deal = next_line
+				elif 'Approx' in line and volume == None:
+					volume_details = line.split(' ')
+					unit = volume_details[2]
+					price_per_unit = volume_details[0] + ' / ' + unit
+					volume = volume_details[5] + unit
+
+
+			# For difficult titles
+			if title == None:
+				if lines[0] == "Sponsored":
+					title = lines[1]
+				else:
+					title = lines[0]
+
+			# Parsing volume from title where approx volume is not given
+			if ',' in title and volume == None:
+				volume = title[(title.rindex(',') + 1):].strip()
+				price_per_unit = price + ' / ' + volume
+			elif ' ' in volume:
+				price_per_unit = '$' + str(
+						round(int(volume[:volume.index(' ')])
+						/ float(price[1:]), 2)
+				)
+				unit = volume[(volume.index(' ') + 1):]
 
 			print("PRICE = ", price)
 			print("TITLE = ", title)
-
+			print("DEAL = ", deal)
+			print("VOLUME = ", volume)
+			print("PPUNIT = ", price_per_unit)
 
 			print('\n\n')
 
 		await browser.close()
 
-print("----------------- Chicken ----------------\n")
-asyncio.run(scrape("beef", 47906))
-print("-~-~-~-~-~-~-~-~-~ MILK ~-~-~-~-~-~-~-~-~-\n")
-asyncio.run(scrape("bread", 47906))
-print("------------------ EGGS ------------------\n")
-asyncio.run(scrape("hot dog", 47906))
+asyncio.run(scrape("chicken", 47906))

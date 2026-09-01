@@ -36,8 +36,6 @@ async def scrape(item_name, zipcode):
 
 		#await page.wait_for_timeout(2000)
 
-		print("We have the card locator")
-
 		await page.wait_for_timeout(2000)
 		cards = await card_locator.all()
 		print(f'Found {len(cards)} products.')
@@ -49,12 +47,7 @@ async def scrape(item_name, zipcode):
 			full_text = await card.inner_text()
 
 			lines = [line.strip() for line in full_text.split('\n') if line.strip()]
-			#print(lines)
 			print('\n\n')
-
-			#product_url = await card.get_attribute('href')
-			#img_el = card.locator('img').first
-			#img_url = await img_el.get_attribute('src') if await img_el.count() > 0 else None
 
 			# lines[0] is always Title - Volume, Price
 			details = lines[0].replace(' - ', ',').split(',')
@@ -63,15 +56,21 @@ async def scrape(item_name, zipcode):
 			volume = details[1]
 			price = details[2]
 
-			print(details)
 
 			volume_count = volume[:volume.index(' ')]
 			unit = volume[volume.index(' '):].strip()
-			total_price = price[2:price.index('.')] + price[price.index('.'):(price.index('.') + 3)]
+			total_price = (
+							f"{price[2:price.index('.')]}"
+							f"{price[price.index('.'):(price.index('.') + 3)]}"
+						)
 
 			per_unit = round((float(total_price) / float(volume_count)), 2)
-			print(str(per_unit) + '/' + unit)
+			price_per_unit = '$' + str(per_unit) + '/' + unit
 
+			print("PRICE: ", price)
+			print("TITLE: ", title)
+			print("VOLUME: ", volume)
+			print("PPUNIT: ", price_per_unit)
 
 
 
